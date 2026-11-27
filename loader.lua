@@ -288,7 +288,7 @@ Run.Heartbeat:Connect(function()
 	if not S.plan and S.tr < Cfg.tries then S.plan = k task.spawn(doTurn, k) end
 end)
 
--- === ПЛАВНЫЙ ЧЕРНО-СЕРЫЙ ИНТЕРФЕЙС (четкий читаемый текст) ===
+-- === ПЛАВНЫЙ ЧЕРНО-СЕРЫЙ ИНТЕРФЕЙС (четкий читаемый текст + Discord) ===
 local function tw(obj, t, props, style)
 	TS:Create(obj, TweenInfo.new(t, style or Enum.EasingStyle.Quart, Enum.EasingDirection.Out), props):Play()
 end
@@ -360,7 +360,7 @@ UIS.InputChanged:Connect(function(i)
 	end
 end)
 
--- Блок с иконкой игрока и четкой цитатой
+-- Блок с иконкой игрока, цитатой и дискордом
 local qBox = Instance.new("Frame", f)
 qBox.Size, qBox.Position = UDim2.new(1, -24, 0, 74), UDim2.fromOffset(12, 46)
 qBox.BackgroundColor3, qBox.BorderSizePixel = Color3.fromRGB(22, 22, 26), 0
@@ -381,6 +381,19 @@ qText.Font, qText.TextSize, qText.TextColor3 = Enum.Font.GothamBold, 12, Color3.
 qText.LineHeight = 1.15
 qText.TextWrapped, qText.TextXAlignment, qText.TextYAlignment = true, Enum.TextXAlignment.Left, Enum.TextYAlignment.Top
 qText.Text = "«мораль заканчивается там, где есть гарантия полной безнаказанности»"
+
+local qDiscord = Instance.new("TextButton", qBox)
+qDiscord.Size, qDiscord.Position, qDiscord.BackgroundTransparency = UDim2.fromOffset(115, 16), UDim2.fromOffset(68, 53), 1
+qDiscord.Font, qDiscord.TextSize, qDiscord.TextColor3 = Enum.Font.GothamBold, 11, Color3.fromRGB(150, 155, 180)
+qDiscord.TextXAlignment = Enum.TextXAlignment.Left
+qDiscord.Text = "ds: vovausko88"
+qDiscord.MouseButton1Click:Connect(function()
+	if type(setclipboard) == "function" then
+		pcall(setclipboard, "vovausko88")
+		qDiscord.Text = "скопировано!"
+		task.delay(1.2, function() if qDiscord and qDiscord.Parent then qDiscord.Text = "ds: vovausko88" end end)
+	end
+end)
 
 local qAuthor = Instance.new("TextLabel", qBox)
 qAuthor.Size, qAuthor.Position, qAuthor.BackgroundTransparency = UDim2.new(1, -76, 0, 16), UDim2.fromOffset(68, 53), 1
