@@ -288,7 +288,7 @@ Run.Heartbeat:Connect(function()
 	if not S.plan and S.tr < Cfg.tries then S.plan = k task.spawn(doTurn, k) end
 end)
 
--- === ПЛАВНЫЙ ЧЕРНО-СЕРЫЙ ИНТЕРФЕЙС (getman words + профиль и цитата) ===
+-- === ПЛАВНЫЙ ЧЕРНО-СЕРЫЙ ИНТЕРФЕЙС (четкий читаемый текст) ===
 local function tw(obj, t, props, style)
 	TS:Create(obj, TweenInfo.new(t, style or Enum.EasingStyle.Quart, Enum.EasingDirection.Out), props):Play()
 end
@@ -301,7 +301,7 @@ gui.Name, gui.ResetOnSpawn = "GetmanWordsUI", false
 
 local f = Instance.new("Frame", gui)
 f.AnchorPoint = Vector2.new(0, 0)
-f.Size, f.Position = UDim2.fromOffset(265, 348), UDim2.new(0.02, 0, 0.28, 0)
+f.Size, f.Position = UDim2.fromOffset(296, 362), UDim2.new(0.02, 0, 0.28, 0)
 f.BackgroundColor3, f.BorderSizePixel = Color3.fromRGB(16, 16, 19), 0
 Instance.new("UICorner", f).CornerRadius = UDim.new(0, 12)
 
@@ -327,13 +327,13 @@ Instance.new("UICorner", dot).CornerRadius = UDim.new(1, 0)
 
 local ttl = Instance.new("TextLabel", hdr)
 ttl.Size, ttl.Position, ttl.BackgroundTransparency = UDim2.new(1, -80, 1, 0), UDim2.fromOffset(28, 0), 1
-ttl.Font, ttl.TextSize, ttl.TextColor3 = Enum.Font.GothamBold, 14, Color3.fromRGB(240, 240, 245)
+ttl.Font, ttl.TextSize, ttl.TextColor3 = Enum.Font.GothamBold, 14, Color3.fromRGB(245, 245, 250)
 ttl.TextXAlignment, ttl.Text = Enum.TextXAlignment.Left, "getman words"
 
 local kBadge = Instance.new("TextLabel", hdr)
 kBadge.Size, kBadge.Position = UDim2.fromOffset(28, 20), UDim2.new(1, -40, 0, 9)
 kBadge.BackgroundColor3, kBadge.BorderSizePixel = Color3.fromRGB(26, 26, 30), 0
-kBadge.Font, kBadge.TextSize, kBadge.TextColor3 = Enum.Font.GothamMedium, 11, Color3.fromRGB(130, 130, 140)
+kBadge.Font, kBadge.TextSize, kBadge.TextColor3 = Enum.Font.GothamBold, 11, Color3.fromRGB(165, 165, 175)
 kBadge.Text = "K"
 Instance.new("UICorner", kBadge).CornerRadius = UDim.new(0, 5)
 Instance.new("UIStroke", kBadge).Color = Color3.fromRGB(44, 44, 50)
@@ -360,51 +360,53 @@ UIS.InputChanged:Connect(function(i)
 	end
 end)
 
--- Блок с иконкой игрока и цитатой
+-- Блок с иконкой игрока и четкой цитатой
 local qBox = Instance.new("Frame", f)
-qBox.Size, qBox.Position = UDim2.new(1, -24, 0, 62), UDim2.fromOffset(12, 46)
-qBox.BackgroundColor3, qBox.BorderSizePixel = Color3.fromRGB(20, 20, 24), 0
+qBox.Size, qBox.Position = UDim2.new(1, -24, 0, 74), UDim2.fromOffset(12, 46)
+qBox.BackgroundColor3, qBox.BorderSizePixel = Color3.fromRGB(22, 22, 26), 0
 Instance.new("UICorner", qBox).CornerRadius = UDim.new(0, 8)
-Instance.new("UIStroke", qBox).Color = Color3.fromRGB(38, 38, 44)
+Instance.new("UIStroke", qBox).Color = Color3.fromRGB(42, 42, 48)
 
 local avatar = Instance.new("ImageLabel", qBox)
-avatar.Size, avatar.Position = UDim2.fromOffset(44, 44), UDim2.fromOffset(9, 9)
+avatar.Size, avatar.Position = UDim2.fromOffset(48, 48), UDim2.fromOffset(10, 13)
 avatar.BackgroundColor3, avatar.BorderSizePixel = Color3.fromRGB(28, 28, 34), 0
 avatar.Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(LP.UserId) .. "&w=150&h=150"
 Instance.new("UICorner", avatar).CornerRadius = UDim.new(1, 0)
 local avStroke = Instance.new("UIStroke", avatar)
-avStroke.Color, avStroke.Thickness = Color3.fromRGB(62, 62, 70), 1
+avStroke.Color, avStroke.Thickness = Color3.fromRGB(70, 70, 80), 1
 
 local qText = Instance.new("TextLabel", qBox)
-qText.Size, qText.Position, qText.BackgroundTransparency = UDim2.new(1, -68, 0, 38), UDim2.fromOffset(61, 5), 1
-qText.Font, qText.TextSize, qText.TextColor3 = Enum.Font.GothamMedium, 10, Color3.fromRGB(195, 195, 205)
+qText.Size, qText.Position, qText.BackgroundTransparency = UDim2.new(1, -76, 0, 44), UDim2.fromOffset(68, 7), 1
+qText.Font, qText.TextSize, qText.TextColor3 = Enum.Font.GothamBold, 12, Color3.fromRGB(240, 240, 248)
+qText.LineHeight = 1.15
 qText.TextWrapped, qText.TextXAlignment, qText.TextYAlignment = true, Enum.TextXAlignment.Left, Enum.TextYAlignment.Top
 qText.Text = "«мораль заканчивается там, где есть гарантия полной безнаказанности»"
 
 local qAuthor = Instance.new("TextLabel", qBox)
-qAuthor.Size, qAuthor.Position, qAuthor.BackgroundTransparency = UDim2.new(1, -68, 0, 14), UDim2.fromOffset(61, 44), 1
-qAuthor.Font, qAuthor.TextSize, qAuthor.TextColor3 = Enum.Font.GothamBold, 10, Color3.fromRGB(130, 130, 142)
+qAuthor.Size, qAuthor.Position, qAuthor.BackgroundTransparency = UDim2.new(1, -76, 0, 16), UDim2.fromOffset(68, 53), 1
+qAuthor.Font, qAuthor.TextSize, qAuthor.TextColor3 = Enum.Font.GothamBold, 11, Color3.fromRGB(180, 180, 195)
 qAuthor.TextXAlignment = Enum.TextXAlignment.Right
 qAuthor.Text = "— вова88"
 
 -- Карточка статуса
 local sBox = Instance.new("Frame", f)
-sBox.Size, sBox.Position = UDim2.new(1, -24, 0, 54), UDim2.fromOffset(12, 116)
+sBox.Size, sBox.Position = UDim2.new(1, -24, 0, 56), UDim2.fromOffset(12, 128)
 sBox.BackgroundColor3, sBox.BorderSizePixel = Color3.fromRGB(20, 20, 24), 0
 Instance.new("UICorner", sBox).CornerRadius = UDim.new(0, 8)
 Instance.new("UIStroke", sBox).Color = Color3.fromRGB(36, 36, 42)
 
 local letBox = Instance.new("TextLabel", sBox)
-letBox.Size, letBox.Position = UDim2.fromOffset(48, 38), UDim2.fromOffset(8, 8)
+letBox.Size, letBox.Position = UDim2.fromOffset(48, 40), UDim2.fromOffset(8, 8)
 letBox.BackgroundColor3, letBox.BorderSizePixel = Color3.fromRGB(28, 28, 34), 0
-letBox.Font, letBox.TextSize, letBox.TextColor3 = Enum.Font.GothamBold, 15, Color3.fromRGB(245, 245, 250)
+letBox.Font, letBox.TextSize, letBox.TextColor3 = Enum.Font.GothamBold, 16, Color3.fromRGB(245, 245, 250)
 letBox.Text = "-"
 Instance.new("UICorner", letBox).CornerRadius = UDim.new(0, 6)
 Instance.new("UIStroke", letBox).Color = Color3.fromRGB(50, 50, 58)
 
 local sLbl = Instance.new("TextLabel", sBox)
 sLbl.Size, sLbl.Position, sLbl.BackgroundTransparency = UDim2.new(1, -68, 1, -10), UDim2.fromOffset(64, 5), 1
-sLbl.Font, sLbl.TextSize, sLbl.TextColor3 = Enum.Font.GothamMedium, 11, Color3.fromRGB(175, 175, 185)
+sLbl.Font, sLbl.TextSize, sLbl.TextColor3 = Enum.Font.GothamSemibold, 12, Color3.fromRGB(220, 220, 230)
+sLbl.LineHeight = 1.2
 sLbl.TextXAlignment, sLbl.TextYAlignment = Enum.TextXAlignment.Left, Enum.TextYAlignment.Center
 sLbl.Text = "Загрузка базы..."
 
@@ -418,7 +420,7 @@ local function makeToggle(y, text, def, cb)
 
 	local lbl = Instance.new("TextLabel", row)
 	lbl.Size, lbl.Position, lbl.BackgroundTransparency = UDim2.new(1, -60, 1, 0), UDim2.fromOffset(12, 0), 1
-	lbl.Font, lbl.TextSize, lbl.TextXAlignment = Enum.Font.GothamMedium, 12, Enum.TextXAlignment.Left
+	lbl.Font, lbl.TextSize, lbl.TextXAlignment = Enum.Font.GothamSemibold, 12, Enum.TextXAlignment.Left
 	lbl.Text = text
 
 	local pill = Instance.new("Frame", row)
@@ -432,7 +434,7 @@ local function makeToggle(y, text, def, cb)
 
 	local function set(on, fast)
 		local d = fast and 0.01 or 0.22
-		tw(lbl, d, {TextColor3 = on and Color3.fromRGB(238, 238, 244) or Color3.fromRGB(135, 135, 145)})
+		tw(lbl, d, {TextColor3 = on and Color3.fromRGB(242, 242, 248) or Color3.fromRGB(150, 150, 162)})
 		tw(pill, d, {BackgroundColor3 = on and Color3.fromRGB(215, 215, 225) or Color3.fromRGB(34, 34, 40)})
 		tw(knob, d, {
 			Position = on and UDim2.fromOffset(20, 2) or UDim2.fromOffset(2, 2),
@@ -445,20 +447,20 @@ local function makeToggle(y, text, def, cb)
 	row.MouseButton1Click:Connect(function() cb(set) end)
 end
 
-makeToggle(178, "Авто-ответ", true, function(set)
+makeToggle(192, "Авто-ответ", true, function(set)
 	Cfg.solve = not Cfg.solve
 	set(Cfg.solve)
 	tw(dot, 0.25, {BackgroundColor3 = Cfg.solve and Color3.fromRGB(220, 220, 230) or Color3.fromRGB(75, 75, 85)})
 end)
 
-makeToggle(218, "Без плохих окончаний", true, function(set)
+makeToggle(232, "Без плохих окончаний", true, function(set)
 	Cfg.safe = not Cfg.safe
 	set(Cfg.safe)
 end)
 
 -- Селектор режима (3 сегмента)
 local mFrame = Instance.new("Frame", f)
-mFrame.Size, mFrame.Position = UDim2.new(1, -24, 0, 32), UDim2.fromOffset(12, 258)
+mFrame.Size, mFrame.Position = UDim2.new(1, -24, 0, 34), UDim2.fromOffset(12, 272)
 mFrame.BackgroundColor3, mFrame.BorderSizePixel = Color3.fromRGB(20, 20, 24), 0
 Instance.new("UICorner", mFrame).CornerRadius = UDim.new(0, 8)
 Instance.new("UIStroke", mFrame).Color = Color3.fromRGB(36, 36, 42)
@@ -478,23 +480,23 @@ for idx, info in ipairs(mList) do
 		for k, btnObj in pairs(mBtns) do
 			local active = (k == Cfg.mode)
 			tw(btnObj, 0.2, {
-				BackgroundColor3 = active and Color3.fromRGB(44, 44, 52) or Color3.fromRGB(20, 20, 24),
-				TextColor3 = active and Color3.fromRGB(240, 240, 245) or Color3.fromRGB(120, 120, 130)
+				BackgroundColor3 = active and Color3.fromRGB(46, 46, 54) or Color3.fromRGB(20, 20, 24),
+				TextColor3 = active and Color3.fromRGB(245, 245, 250) or Color3.fromRGB(135, 135, 145)
 			})
 		end
 	end)
 end
 for k, btnObj in pairs(mBtns) do
 	local active = (k == Cfg.mode)
-	btnObj.BackgroundColor3 = active and Color3.fromRGB(44, 44, 52) or Color3.fromRGB(20, 20, 24)
-	btnObj.TextColor3 = active and Color3.fromRGB(240, 240, 245) or Color3.fromRGB(120, 120, 130)
+	btnObj.BackgroundColor3 = active and Color3.fromRGB(46, 46, 54) or Color3.fromRGB(20, 20, 24)
+	btnObj.TextColor3 = active and Color3.fromRGB(245, 245, 250) or Color3.fromRGB(135, 135, 145)
 end
 
 -- Кнопка мгновенного ответа
 local actBtn = Instance.new("TextButton", f)
-actBtn.Size, actBtn.Position, actBtn.AutoButtonColor = UDim2.new(1, -24, 0, 34), UDim2.fromOffset(12, 298), false
+actBtn.Size, actBtn.Position, actBtn.AutoButtonColor = UDim2.new(1, -24, 0, 36), UDim2.fromOffset(12, 314), false
 actBtn.BackgroundColor3, actBtn.BorderSizePixel = Color3.fromRGB(32, 32, 38), 0
-actBtn.Font, actBtn.TextSize, actBtn.TextColor3 = Enum.Font.GothamBold, 12, Color3.fromRGB(235, 235, 242)
+actBtn.Font, actBtn.TextSize, actBtn.TextColor3 = Enum.Font.GothamBold, 12, Color3.fromRGB(242, 242, 248)
 actBtn.Text = "Ответить мгновенно"
 Instance.new("UICorner", actBtn).CornerRadius = UDim.new(0, 8)
 local actSt = Instance.new("UIStroke", actBtn) actSt.Color = Color3.fromRGB(58, 58, 66)
