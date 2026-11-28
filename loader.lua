@@ -1,4 +1,4 @@
--- getman words (smooth obsidian UI + profile quote + real human legit)
+-- getman words (smooth obsidian UI + profile quote + Discord + min/max word length)
 getgenv().__GWGen = (getgenv().__GWGen or 0) + 1
 local GEN = getgenv().__GWGen
 local function alive() return getgenv().__GWGen == GEN end
@@ -15,7 +15,7 @@ local Action = WG and WG:WaitForChild("Action", 15)
 local State = WG and WG:WaitForChild("State", 15)
 if not (Action and State) then return end
 
-local Cfg = { solve = true, mode = "legit", choose = true, safe = true, show = true, tries = 25 }
+local Cfg = { solve = true, mode = "legit", choose = true, safe = true, show = true, tries = 25, minL = 3, maxL = 12 }
 local MODES = {
 	legit      = { T = {0.85, 1.70}, C = {0.15, 0.30}, TYPO = 0.20, PAUSE = 0.25, END = {0.25, 0.50}, FAST = false },
 	superlegit = { T = {1.35, 2.60}, C = {0.22, 0.42}, TYPO = 0.28, PAUSE = 0.40, END = {0.35, 0.70}, FAST = false },
@@ -153,7 +153,7 @@ local function loadDict()
 end
 task.spawn(loadDict)
 
--- === ЛОГИКА ИГРЫ (БЕЗ ИЗМЕНЕНИЙ) ===
+-- === ЛОГИКА ИГРЫ (БЕЗ ИЗМЕНЕНИЙ + УЧЕТ ДЛИНЫ СЛОВА) ===
 local G = { phase = "lobby", let = "", you = nil, turn = nil, tid = nil, rnd = 0, gen = 0, at = 0, ch = nil, chr = nil }
 local S = { used = {}, bad = {}, req = 0, tr = 0, tKey = nil, cKey = nil, pend = nil, plan = nil, last = "-", won = 0 }
 
@@ -197,13 +197,19 @@ local function pick(pref)
 	local p = ruLow(pref)
 	local b = Dict.b[string.sub(p, 1, 2)]
 	if p == "" or not b then return nil end
-	local L, fb = #p, nil
+	local L, fb1, fb2, fb3 = #p, nil, nil, nil
 	for _, w in ipairs(b) do
 		if #w > L and string.sub(w, 1, L) == p and not S.used[w] and not S.bad[w] then
-			if Cfg.safe and BAD_END[string.sub(w, -2)] then fb = fb or w else return w end
+			local len = uLen(w)
+			local okLen = (len >= Cfg.minL and len <= Cfg.maxL)
+			local badEnd = Cfg.safe and BAD_END[string.sub(w, -2)]
+			if okLen and not badEnd then return w end
+			if okLen then fb1 = fb1 or w
+			elseif not badEnd then fb2 = fb2 or w
+			else fb3 = fb3 or w end
 		end
 	end
-	return fb
+	return fb1 or fb2 or fb3
 end
 
 local function submit(w)
@@ -288,7 +294,7 @@ Run.Heartbeat:Connect(function()
 	if not S.plan and S.tr < Cfg.tries then S.plan = k task.spawn(doTurn, k) end
 end)
 
--- === ПЛАВНЫЙ ЧЕРНО-СЕРЫЙ ИНТЕРФЕЙС (четкий читаемый текст + Discord) ===
+-- === ПЛАВНЫЙ ЧЕРНО-СЕРЫЙ ИНТЕРФЕЙС ===
 local function tw(obj, t, props, style)
 	TS:Create(obj, TweenInfo.new(t, style or Enum.EasingStyle.Quart, Enum.EasingDirection.Out), props):Play()
 end
@@ -301,7 +307,7 @@ gui.Name, gui.ResetOnSpawn = "GetmanWordsUI", false
 
 local f = Instance.new("Frame", gui)
 f.AnchorPoint = Vector2.new(0, 0)
-f.Size, f.Position = UDim2.fromOffset(296, 362), UDim2.new(0.02, 0, 0.28, 0)
+f.Size, f.Position = UDim2.fromOffset(296, 402), UDim2.new(0.02, 0, 0.26, 0)
 f.BackgroundColor3, f.BorderSizePixel = Color3.fromRGB(16, 16, 19), 0
 Instance.new("UICorner", f).CornerRadius = UDim.new(0, 12)
 
@@ -471,9 +477,57 @@ makeToggle(232, "Без плохих окончаний", true, function(set)
 	set(Cfg.safe)
 end)
 
+-- Настройка МИН и МАКС длины слова
+local minLbl, maxLbl
+local function makeStepper(x, y, w, prefix, getVal, onStep)
+	local box = Instance.new("Frame", f)
+	box.Size, box.Position = UDim2.fromOffset(w, 34), UDim2.fromOffset(x, y)
+	box.BackgroundColor3, box.BorderSizePixel = Color3.fromRGB(22, 22, 26), 0
+	Instance.new("UICorner", box).CornerRadius = UDim.new(0, 8)
+	Instance.new("UIStroke", box).Color = Color3.fromRGB(36, 36, 42)
+
+	local lbl = Instance.new("TextLabel", box)
+	lbl.Size, lbl.Position, lbl.BackgroundTransparency = UDim2.fromOffset(72, 34), UDim2.fromOffset(10, 0), 1
+	lbl.Font, lbl.TextSize, lbl.TextColor3 = Enum.Font.GothamSemibold, 12, Color3.fromRGB(235, 235, 242)
+	lbl.TextXAlignment = Enum.TextXAlignment.Left
+	lbl.Text = prefix .. ": " .. tostring(getVal())
+
+	local function mkBtn(bx, txt, d)
+		local b = Instance.new("TextButton", box)
+		b.Size, b.Position, b.AutoButtonColor = UDim2.fromOffset(24, 24), UDim2.fromOffset(bx, 5), false
+		b.BackgroundColor3, b.BorderSizePixel = Color3.fromRGB(32, 32, 38), 0
+		b.Font, b.TextSize, b.TextColor3 = Enum.Font.GothamBold, 14, Color3.fromRGB(220, 220, 230)
+		b.Text = txt
+		Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
+		b.MouseEnter:Connect(function() tw(b, 0.12, {BackgroundColor3 = Color3.fromRGB(46, 46, 54)}) end)
+		b.MouseLeave:Connect(function() tw(b, 0.12, {BackgroundColor3 = Color3.fromRGB(32, 32, 38)}) end)
+		b.MouseButton1Click:Connect(function() onStep(d) end)
+	end
+	mkBtn(w - 56, "-", -1)
+	mkBtn(w - 28, "+", 1)
+	return lbl
+end
+
+local function syncLenUI()
+	if minLbl then minLbl.Text = "Мин: " .. tostring(Cfg.minL) end
+	if maxLbl then maxLbl.Text = "Макс: " .. tostring(Cfg.maxL) end
+end
+
+minLbl = makeStepper(12, 272, 133, "Мин", function() return Cfg.minL end, function(d)
+	Cfg.minL = math.clamp(Cfg.minL + d, 3, 28)
+	if Cfg.minL > Cfg.maxL then Cfg.maxL = Cfg.minL end
+	syncLenUI()
+end)
+
+maxLbl = makeStepper(151, 272, 133, "Макс", function() return Cfg.maxL end, function(d)
+	Cfg.maxL = math.clamp(Cfg.maxL + d, 3, 28)
+	if Cfg.maxL < Cfg.minL then Cfg.minL = Cfg.maxL end
+	syncLenUI()
+end)
+
 -- Селектор режима (3 сегмента)
 local mFrame = Instance.new("Frame", f)
-mFrame.Size, mFrame.Position = UDim2.new(1, -24, 0, 34), UDim2.fromOffset(12, 272)
+mFrame.Size, mFrame.Position = UDim2.new(1, -24, 0, 34), UDim2.fromOffset(12, 312)
 mFrame.BackgroundColor3, mFrame.BorderSizePixel = Color3.fromRGB(20, 20, 24), 0
 Instance.new("UICorner", mFrame).CornerRadius = UDim.new(0, 8)
 Instance.new("UIStroke", mFrame).Color = Color3.fromRGB(36, 36, 42)
@@ -507,7 +561,7 @@ end
 
 -- Кнопка мгновенного ответа
 local actBtn = Instance.new("TextButton", f)
-actBtn.Size, actBtn.Position, actBtn.AutoButtonColor = UDim2.new(1, -24, 0, 36), UDim2.fromOffset(12, 314), false
+actBtn.Size, actBtn.Position, actBtn.AutoButtonColor = UDim2.new(1, -24, 0, 36), UDim2.fromOffset(12, 354), false
 actBtn.BackgroundColor3, actBtn.BorderSizePixel = Color3.fromRGB(32, 32, 38), 0
 actBtn.Font, actBtn.TextSize, actBtn.TextColor3 = Enum.Font.GothamBold, 12, Color3.fromRGB(242, 242, 248)
 actBtn.Text = "Ответить мгновенно"
