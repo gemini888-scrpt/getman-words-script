@@ -1,4 +1,4 @@
--- getman words (smooth obsidian UI + quote + Discord + min/max len + click letter priority + RAGE/ЕЛ fix)
+-- getman words (smooth obsidian UI + quote + Discord + min/max len + click letter priority + pure legit)
 getgenv().__GWGen = (getgenv().__GWGen or 0) + 1
 local GEN = getgenv().__GWGen
 local function alive() return getgenv().__GWGen == GEN end
@@ -15,7 +15,7 @@ local Action = WG and WG:WaitForChild("Action", 15)
 local State = WG and WG:WaitForChild("State", 15)
 if not (Action and State) then return end
 
-local Cfg = { solve = true, mode = "legit", choose = true, safe = true, show = true, tries = 120, minL = 3, maxL = 12, prio = "" }
+local Cfg = { solve = true, mode = "legit", choose = true, safe = true, show = true, tries = 100, minL = 3, maxL = 12, prio = "" }
 local MODES = {
 	legit      = { T = {0.85, 1.70}, C = {0.15, 0.30}, TYPO = 0.20, PAUSE = 0.25, END = {0.25, 0.50}, FAST = false },
 	superlegit = { T = {1.35, 2.60}, C = {0.22, 0.42}, TYPO = 0.28, PAUSE = 0.40, END = {0.35, 0.70}, FAST = false },
@@ -23,7 +23,7 @@ local MODES = {
 }
 local BAD_END = { ["й"]=true, ["ь"]=true, ["ъ"]=true, ["ы"]=true }
 local PRIO_LIST = { "", "а","б","в","г","д","е","ж","з","и","й","к","л","м","н","о","п","р","с","т","у","ф","х","ц","ч","ш","щ","э","ю","я" }
-local CACHE = "getman_words_v3.txt"
+local CACHE = "getman_words_v4.txt"
 
 local function rnd(a, b) return a + (b - a) * math.random() end
 local function uLen(s) local ok, c = pcall(utf8.len, s) return ok and c or 0 end
@@ -83,8 +83,8 @@ local function typoChar(ch)
 	return KB_LIST[math.random(1, #KB_LIST)]
 end
 
--- === СЛОВАРЬ (С ПОДДЕРЖКОЙ Ё->Е И РЕЗЕРВОМ ДЛЯ РЕДКИХ СЛОГОВ) ===
-local Dict = getgenv().__GWDictV3 or { b = {}, total = 0, ok = false }
+-- === СЛОВАРЬ (СТРОГО ЧИСТЫЕ СУЩЕСТВИТЕЛЬНЫЕ + ПОДДЕРЖКА Е/Ё) ===
+local Dict = getgenv().__GWDictV4 or { b = {}, total = 0, ok = false }
 local function loadDict()
 	if Dict.ok then return end
 	local seen = {}
@@ -104,7 +104,7 @@ local function loadDict()
 	if saved and #saved > 50000 then
 		for line in string.gmatch(saved, "[^\r\n]+") do addWord(clean(line)) end
 		Dict.ok = true
-		getgenv().__GWDictV3 = Dict
+		getgenv().__GWDictV4 = Dict
 		return
 	end
 
@@ -116,7 +116,7 @@ local function loadDict()
 		or get("https://cdn.jsdelivr.net/gh/Harrix/Russian-Nouns@main/dist/russian_nouns.txt")
 	local freqRaw = get("https://raw.githubusercontent.com/hermitdave/FrequencyWords/master/content/2018/ru/ru_50k.txt")
 
-	local nounSet, allNouns, extraFreq = {}, {}, {}
+	local nounSet, allNouns = {}, {}
 	if nounsRaw then
 		for line in string.gmatch(nounsRaw, "[^\r\n]+") do
 			local w = clean(line)
@@ -130,12 +130,8 @@ local function loadDict()
 	if freqRaw and #allNouns > 0 then
 		for line in string.gmatch(freqRaw, "[^\r\n]+") do
 			local w = clean(line:match("^(%S+)") or line)
-			if w then
-				if nounSet[w] then
-					if addWord(w) then ordered[#ordered+1] = w end
-				else
-					extraFreq[#extraFreq+1] = w
-				end
+			if w and nounSet[w] and addWord(w) then
+				ordered[#ordered+1] = w
 			end
 		end
 	end
@@ -147,49 +143,45 @@ local function loadDict()
 	for _, w in ipairs(allNouns) do
 		if addWord(w) then ordered[#ordered+1] = w end
 	end
-	for _, w in ipairs(extraFreq) do
-		if addWord(w) then ordered[#ordered+1] = w end
-	end
 	if type(writefile) == "function" and #ordered > 1000 then
 		pcall(writefile, CACHE, table.concat(ordered, "\n"))
 	end
 	Dict.ok = true
-	getgenv().__GWDictV3 = Dict
+	getgenv().__GWDictV4 = Dict
 end
 task.spawn(loadDict)
 
--- === ЛОГИКА ИГРЫ ===
-local G = { phase = "lobby", let = "", you = nil, turn = nil, tid = nil, rnd = 0, gen = 0, at = 0, ch = nil, chr = nil }
+-- === ЛОГИКА ИГРЫ (БЕЗ ПЕРЕБИВАНИЯ СЛОВ И С ЧЕЛОВЕЧЕСКИМ ТАЙМИНГОМ) ===
+local G = { phase = "lobby", let = "", you = nil, turn = nil, tid = nil, rnd = 0, gen = 0, at = 0, ch = nil, chr = nil, tSeq = 0 }
 local S = { used = {}, bad = {}, req = 0, tr = 0, tKey = nil, cKey = nil, pend = nil, plan = nil, last = "-", won = 0 }
 
 local function mark(w) local c = clean(w) if c then S.used[c] = true end end
 
 State.OnClientEvent:Connect(function(p)
 	if not alive() or type(p) ~= "table" then return end
-	G.at = os.clock()
 	if p.kind == "match" then
-		local prevTurn, prevLet = G.turn, G.let
-		G.phase = tostring(p.phase or "lobby")
+		local wasMyTurn = (G.phase == "playing" and G.turn ~= nil and G.turn == G.you)
+		G.at, G.phase = os.clock(), tostring(p.phase or "lobby")
 		G.let = ruLow(tostring(p.letter or p.prefix or p.letters or ""))
 		G.you, G.turn, G.tid = p.you, p.turn, p.tableId
 		G.rnd, G.gen = tonumber(p.round) or 0, tonumber(p.generation) or 0
 		G.ch, G.chr = p.choices, p.chooser
+		local isMyTurn = (G.phase == "playing" and G.turn ~= nil and G.turn == G.you)
+		if isMyTurn and not wasMyTurn then G.tSeq += 1 end
 		local mk = tostring(G.tid)..":"..tostring(G.gen)
-		if G.mk ~= mk then G.mk, S.used, S.tKey, S.cKey, S.pend, S.plan, S.tr = mk, {}, nil, nil, nil, nil, 0 end
-		if prevTurn ~= G.turn or prevLet ~= G.let then S.tr, S.pend, S.plan = 0, nil, nil end
+		if G.mk ~= mk then G.mk, S.used, S.tKey, S.cKey, S.pend, S.plan, G.tSeq = mk, {}, nil, nil, nil, nil, 0 end
 		for _, w in ipairs(p.history or {}) do mark(w) end
 		if p.lastWord then mark(p.lastWord) end
 	elseif p.kind == "accepted" then
 		local w = clean(tostring(p.word or ""))
-		if w then mark(w) if S.pend and S.pend.w == w then S.won += 1 end end
-		S.pend, S.plan, S.tr = nil, nil, 0
+		if w then mark(w) if S.pend and S.pend.w == w then S.won += 1 S.pend = nil end end
 	elseif p.kind == "invalid" or p.kind == "wordRejected" then
 		if S.pend then
 			if p.reason == "used" then mark(S.pend.w) elseif S.pend.w then S.bad[S.pend.w] = true end
+			S.pend = nil
 		end
-		S.pend, S.plan = nil, nil
 	elseif p.kind == "result" then
-		G.phase, G.turn, S.pend, S.plan, S.tr = "finished", nil, nil, nil, 0
+		G.phase, G.turn, S.pend, S.plan = "finished", nil, nil, nil
 	end
 end)
 
@@ -247,7 +239,7 @@ local function doTurn(key)
 	local M = MODES[Cfg.mode] or MODES.legit
 	local retry = S.tr > 0
 	if retry then
-		task.wait(M.FAST and rnd(0.05, 0.10) or rnd(0.25, 0.45))
+		task.wait(M.FAST and rnd(0.05, 0.10) or rnd(0.65, 1.15))
 	else
 		task.wait(rnd(M.T[1], M.T[2]))
 	end
@@ -281,12 +273,10 @@ local function doTurn(key)
 				task.wait(rnd(0.25, 0.50))
 			end
 
-			local cMin = retry and (M.C[1] * 0.6) or M.C[1]
-			local cMax = retry and (M.C[2] * 0.6) or M.C[2]
-			task.wait(rnd(cMin, cMax))
+			task.wait(rnd(M.C[1], M.C[2]))
 		end
 
-		if not retry and M.END[2] > 0 then
+		if M.END[2] > 0 then
 			task.wait(rnd(M.END[1], M.END[2]))
 		end
 	end
@@ -312,8 +302,8 @@ Run.Heartbeat:Connect(function()
 		return
 	end
 	if G.phase ~= "playing" or G.turn ~= G.you then return end
-	if S.pend then if os.clock() - S.pend.at > 1.2 then S.pend = nil end return end
-	local k = table.concat({tostring(G.tid), tostring(G.rnd), tostring(G.gen), tostring(G.let)}, ":")
+	if S.pend then if os.clock() - S.pend.at > 1.6 then S.pend = nil end return end
+	local k = table.concat({tostring(G.tid), tostring(G.rnd), tostring(G.gen), tostring(G.tSeq)}, ":")
 	if S.tKey ~= k then S.tKey, S.tr = k, 0 end
 	if not S.plan and S.tr < Cfg.tries then S.plan = k task.spawn(doTurn, k) end
 end)
