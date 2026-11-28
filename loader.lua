@@ -1,4 +1,4 @@
--- getman words (smooth obsidian UI + profile quote + Discord + min/max word length)
+-- getman words (smooth obsidian UI + quote + Discord + min/max len + click letter priority)
 getgenv().__GWGen = (getgenv().__GWGen or 0) + 1
 local GEN = getgenv().__GWGen
 local function alive() return getgenv().__GWGen == GEN end
@@ -15,13 +15,14 @@ local Action = WG and WG:WaitForChild("Action", 15)
 local State = WG and WG:WaitForChild("State", 15)
 if not (Action and State) then return end
 
-local Cfg = { solve = true, mode = "legit", choose = true, safe = true, show = true, tries = 25, minL = 3, maxL = 12 }
+local Cfg = { solve = true, mode = "legit", choose = true, safe = true, show = true, tries = 25, minL = 3, maxL = 12, prio = "" }
 local MODES = {
 	legit      = { T = {0.85, 1.70}, C = {0.15, 0.30}, TYPO = 0.20, PAUSE = 0.25, END = {0.25, 0.50}, FAST = false },
 	superlegit = { T = {1.35, 2.60}, C = {0.22, 0.42}, TYPO = 0.28, PAUSE = 0.40, END = {0.35, 0.70}, FAST = false },
 	rage       = { T = {0.02, 0.06}, C = {0.01, 0.02}, TYPO = 0,    PAUSE = 0,    END = {0, 0},       FAST = true  },
 }
 local BAD_END = { ["й"]=true, ["ь"]=true, ["ъ"]=true, ["ы"]=true }
+local PRIO_LIST = { "", "а","б","в","г","д","е","ж","з","и","й","к","л","м","н","о","п","р","с","т","у","ф","х","ц","ч","ш","щ","э","ю","я" }
 local CACHE = "getman_words_v2.txt"
 
 local function rnd(a, b) return a + (b - a) * math.random() end
@@ -153,7 +154,7 @@ local function loadDict()
 end
 task.spawn(loadDict)
 
--- === ЛОГИКА ИГРЫ (БЕЗ ИЗМЕНЕНИЙ + УЧЕТ ДЛИНЫ СЛОВА) ===
+-- === ЛОГИКА ИГРЫ (БЕЗ ИЗМЕНЕНИЙ + ДЛИНА И ПРИОРИТЕТ БУКВЫ) ===
 local G = { phase = "lobby", let = "", you = nil, turn = nil, tid = nil, rnd = 0, gen = 0, at = 0, ch = nil, chr = nil }
 local S = { used = {}, bad = {}, req = 0, tr = 0, tKey = nil, cKey = nil, pend = nil, plan = nil, last = "-", won = 0 }
 
@@ -197,19 +198,25 @@ local function pick(pref)
 	local p = ruLow(pref)
 	local b = Dict.b[string.sub(p, 1, 2)]
 	if p == "" or not b then return nil end
-	local L, fb1, fb2, fb3 = #p, nil, nil, nil
+	local L, pr = #p, Cfg.prio
+	local fbPrio, fb1, fb2, fb3 = nil, nil, nil, nil
 	for _, w in ipairs(b) do
 		if #w > L and string.sub(w, 1, L) == p and not S.used[w] and not S.bad[w] then
 			local len = uLen(w)
 			local okLen = (len >= Cfg.minL and len <= Cfg.maxL)
-			local badEnd = Cfg.safe and BAD_END[string.sub(w, -2)]
-			if okLen and not badEnd then return w end
-			if okLen then fb1 = fb1 or w
-			elseif not badEnd then fb2 = fb2 or w
+			local lastCh = string.sub(w, -2)
+			local badEnd = Cfg.safe and BAD_END[lastCh] and (pr ~= lastCh)
+			local okPrio = (pr == "" or lastCh == pr)
+
+			if okPrio and okLen and not badEnd then return w end
+			if pr ~= "" and lastCh == pr and not badEnd then fbPrio = fbPrio or w
+			elseif okLen and not badEnd then fb1 = fb1 or w
+			elseif okLen then fb2 = fb2 or w
+			elseif not badEnd then fb3 = fb3 or w
 			else fb3 = fb3 or w end
 		end
 	end
-	return fb1 or fb2 or fb3
+	return fbPrio or fb1 or fb2 or fb3
 end
 
 local function submit(w)
@@ -283,6 +290,11 @@ Run.Heartbeat:Connect(function()
 		if S.cKey ~= k then
 			S.cKey = k
 			local c = ruLow(tostring(G.ch[1] or ""))
+			if Cfg.prio ~= "" then
+				for _, ch Let in ipairs(G.ch) do
+					if ruLow(tostring(chLet)) == Cfg.prio then c = Cfg.prio break end
+				end
+			end
 			task.delay(rnd(0.7, 1.4), function() if alive() and G.phase == "choosing" then Action:FireServer("choose", c) end end)
 		end
 		return
@@ -307,7 +319,7 @@ gui.Name, gui.ResetOnSpawn = "GetmanWordsUI", false
 
 local f = Instance.new("Frame", gui)
 f.AnchorPoint = Vector2.new(0, 0)
-f.Size, f.Position = UDim2.fromOffset(296, 402), UDim2.new(0.02, 0, 0.26, 0)
+f.Size, f.Position = UDim2.fromOffset(296, 442), UDim2.new(0.02, 0, 0.24, 0)
 f.BackgroundColor3, f.BorderSizePixel = Color3.fromRGB(16, 16, 19), 0
 Instance.new("UICorner", f).CornerRadius = UDim.new(0, 12)
 
@@ -525,9 +537,94 @@ maxLbl = makeStepper(151, 272, 133, "Макс", function() return Cfg.maxL end, 
 	syncLenUI()
 end)
 
+-- === ВЫБОР ПРИОРИТЕТА БУКВЫ КЛИКОМ МЫШКИ (БЕЗ ВВОДА С КЛАВИАТУРЫ) ===
+local pRow = Instance.new("TextButton", f)
+pRow.Size, pRow.Position, pRow.AutoButtonColor = UDim2.new(1, -24, 0, 34), UDim2.fromOffset(12, 312), false
+pRow.BackgroundColor3, pRow.BorderSizePixel, pRow.Text = Color3.fromRGB(22, 22, 26), 0, ""
+Instance.new("UICorner", pRow).CornerRadius = UDim.new(0, 8)
+Instance.new("UIStroke", pRow).Color = Color3.fromRGB(36, 36, 42)
+
+local pLbl = Instance.new("TextLabel", pRow)
+pLbl.Size, pLbl.Position, pLbl.BackgroundTransparency = UDim2.new(1, -76, 1, 0), UDim2.fromOffset(12, 0), 1
+pLbl.Font, pLbl.TextSize, pLbl.TextColor3 = Enum.Font.GothamSemibold, 12, Color3.fromRGB(235, 235, 242)
+pLbl.TextXAlignment = Enum.TextXAlignment.Left
+pLbl.Text = "Приоритет буквы: ВЫКЛ"
+
+-- Выпадающая панель с кнопками всех букв справа от меню
+local pPop = Instance.new("Frame", f)
+pPop.Size, pPop.Position = UDim2.fromOffset(210, 218), UDim2.new(1, 8, 0, 192)
+pPop.BackgroundColor3, pPop.BorderSizePixel = Color3.fromRGB(18, 18, 22), 0
+pPop.Visible = false
+Instance.new("UICorner", pPop).CornerRadius = UDim.new(0, 10)
+Instance.new("UIStroke", pPop).Color = Color3.fromRGB(48, 48, 56)
+
+local offBtn = Instance.new("TextButton", pPop)
+offBtn.Size, offBtn.Position, offBtn.AutoButtonColor = UDim2.new(1, -16, 0, 26), UDim2.fromOffset(8, 8), false
+offBtn.BackgroundColor3, offBtn.BorderSizePixel = Color3.fromRGB(46, 46, 54), 0
+offBtn.Font, offBtn.TextSize, offBtn.TextColor3 = Enum.Font.GothamBold, 11, Color3.fromRGB(245, 245, 250)
+offBtn.Text = "ВЫКЛ (Без приоритета)"
+Instance.new("UICorner", offBtn).CornerRadius = UDim.new(0, 6)
+
+local pBtns = { [""] = offBtn }
+local pIdx = 1
+
+local function syncPrioUI()
+	pLbl.Text = "Приоритет буквы: " .. (Cfg.prio == "" and "ВЫКЛ" or ruUp(Cfg.prio))
+	for ch, b in pairs(pBtns) do
+		local act = (ch == Cfg.prio)
+		b.BackgroundColor3 = act and Color3.fromRGB(58, 58, 70) or Color3.fromRGB(26, 26, 32)
+		b.TextColor3 = act and Color3.fromRGB(248, 248, 255) or Color3.fromRGB(165, 165, 178)
+	end
+end
+
+offBtn.MouseButton1Click:Connect(function()
+	Cfg.prio, pIdx = "", 1
+	syncPrioUI()
+	pPop.Visible = false
+end)
+
+for i = 2, #PRIO_LIST do
+	local ch = PRIO_LIST[i]
+	local idx0 = i - 2
+	local col, row = idx0 % 6, math.floor(idx0 / 6)
+	local b = Instance.new("TextButton", pPop)
+	b.Size = UDim2.fromOffset(29, 29)
+	b.Position = UDim2.fromOffset(8 + col * 33, 40 + row * 34)
+	b.AutoButtonColor, b.BorderSizePixel = false, 0
+	b.Font, b.TextSize, b.Text = Enum.Font.GothamBold, 12, ruUp(ch)
+	Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
+	pBtns[ch] = b
+	b.MouseButton1Click:Connect(function()
+		Cfg.prio, pIdx = ch, i
+		syncPrioUI()
+		pPop.Visible = false
+	end)
+end
+syncPrioUI()
+
+local function stepPrio(d)
+	pIdx = ((pIdx - 1 + d) % #PRIO_LIST) + 1
+	Cfg.prio = PRIO_LIST[pIdx]
+	syncPrioUI()
+end
+
+for _, info in ipairs({ {x = 216, t = "<", d = -1}, {x = 244, t = ">", d = 1} }) do
+	local b = Instance.new("TextButton", pRow)
+	b.Size, b.Position, b.AutoButtonColor = UDim2.fromOffset(24, 24), UDim2.fromOffset(info.x, 5), false
+	b.BackgroundColor3, b.BorderSizePixel = Color3.fromRGB(32, 32, 38), 0
+	b.Font, b.TextSize, b.TextColor3 = Enum.Font.GothamBold, 12, Color3.fromRGB(220, 220, 230)
+	b.Text = info.t
+	Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
+	b.MouseButton1Click:Connect(function() stepPrio(info.d) end)
+end
+
+pRow.MouseEnter:Connect(function() tw(pRow, 0.15, {BackgroundColor3 = Color3.fromRGB(27, 27, 32)}) end)
+pRow.MouseLeave:Connect(function() tw(pRow, 0.15, {BackgroundColor3 = Color3.fromRGB(22, 22, 26)}) end)
+pRow.MouseButton1Click:Connect(function() pPop.Visible = not pPop.Visible end)
+
 -- Селектор режима (3 сегмента)
 local mFrame = Instance.new("Frame", f)
-mFrame.Size, mFrame.Position = UDim2.new(1, -24, 0, 34), UDim2.fromOffset(12, 312)
+mFrame.Size, mFrame.Position = UDim2.new(1, -24, 0, 34), UDim2.fromOffset(12, 352)
 mFrame.BackgroundColor3, mFrame.BorderSizePixel = Color3.fromRGB(20, 20, 24), 0
 Instance.new("UICorner", mFrame).CornerRadius = UDim.new(0, 8)
 Instance.new("UIStroke", mFrame).Color = Color3.fromRGB(36, 36, 42)
@@ -561,7 +658,7 @@ end
 
 -- Кнопка мгновенного ответа
 local actBtn = Instance.new("TextButton", f)
-actBtn.Size, actBtn.Position, actBtn.AutoButtonColor = UDim2.new(1, -24, 0, 36), UDim2.fromOffset(12, 354), false
+actBtn.Size, actBtn.Position, actBtn.AutoButtonColor = UDim2.new(1, -24, 0, 36), UDim2.fromOffset(12, 394), false
 actBtn.BackgroundColor3, actBtn.BorderSizePixel = Color3.fromRGB(32, 32, 38), 0
 actBtn.Font, actBtn.TextSize, actBtn.TextColor3 = Enum.Font.GothamBold, 12, Color3.fromRGB(242, 242, 248)
 actBtn.Text = "Ответить мгновенно"
@@ -588,6 +685,7 @@ UIS.InputBegan:Connect(function(i, g)
 			f.Visible = true
 			tw(uScale, 0.28, {Scale = 1}, Enum.EasingStyle.Back)
 		else
+			pPop.Visible = false
 			tw(uScale, 0.18, {Scale = 0.85}, Enum.EasingStyle.Quad)
 			task.delay(0.18, function() if not shown then f.Visible = false end end)
 		end
